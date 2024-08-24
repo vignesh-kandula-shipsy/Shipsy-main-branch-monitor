@@ -1,0 +1,66 @@
+def gitCloning(repoUrl, branchName, credentialsId) {
+    echo "Cloning repository ${repoUrl}, branch: ${branchName}"
+    checkout([$class: 'GitSCM', branches: [[name: branchName]], 
+              userRemoteConfigs: [[url: repoUrl, credentialsId: credentialsId]]])
+}
+
+def checkBranchUpdate(mainBranch, majorBranch) {
+    sh "git fetch origin"
+    def logResult = sh(script: "git log ${mainBranch}..${majorBranch} --oneline", returnStdout: true).trim()
+    if (logResult) {
+        sendSlackNotification("The branch '${majorBranch}' is out of date with '${mainBranch}' in the repository.")
+    } else {
+        echo "The branch '${majorBranch}' is up-to-date with '${mainBranch}'."
+    }
+}
+
+def sendSlackNotification(message) {
+    slackSend(channel: 'C06SKL3BJ86', message: message, webhookUrl: env.SLACK_WEBHOOK_URL)
+}
+
+pipeline {
+    agent {
+        label 'e2e-node'
+    }
+
+    environment {
+        SLACK_WEBHOOK_URL = 'INTERNAL-SLACK-URL'
+        GIT_CREDENTIALS_ID = '91930e69-dad2-4054-9f8f-207076cca38f'
+    }
+
+    stages {
+        stage('Clone Repositories') {
+            steps {
+                script {
+                    def repos = [
+                        'https://github.com/shipsy/shipsy-ondemand-appium.git',
+                        'https://github.com/shipsy/shipsy-riderapp-appium.git',
+                        'https://github.com/shipsy/shipsy-fieldops-appium.git',
+                        'https://github.com/shipsy/shipsy-mydtdc-app-appium.git',
+                    ]
+
+                    def majorBranch = 'Major'  // Replace with the actual major branch name
+                    def mainBranch = 'main'
+
+                    repos.each { repo ->
+                        dir("${env.WORKSPACE}/${repo.split('/').last().replace('.git','')}") {
+                            gitCloning(repo, majorBranch, env.GIT_CREDENTIALS_ID)
+                            checkBranchUpdate(mainBranch, majorBranch)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                sendSlackNotification("Pipeline failed. Please check.")
+            }
+        }
+    }
+}
+
+
+
