@@ -33,7 +33,7 @@ pipeline {
             steps {
                 script {
                     def repos = [
-                        'git@github.com:shipsy/shipsy-ondemand-appium.git'
+                        'https://github.com/shipsy/shipsy-ondemand-appium.git'
                     ]
 
                     def majorBranch = 'Major'  // Replace with the actual major branch name
