@@ -15,7 +15,7 @@ def checkBranchUpdate(mainBranch, majorBranch) {
 }
 
 def sendSlackNotification(message) {
-    slackSend(channel: 'C06SKL3BJ86', message: message, webhookUrl: env.SLACK_WEBHOOK_URL)
+    slackSend(channel: 'C07AL8LLEGN', message: message, webhookUrl: env.SLACK_WEBHOOK_URL)
 }
 
 pipeline {
@@ -33,10 +33,7 @@ pipeline {
             steps {
                 script {
                     def repos = [
-                        'https://github.com/shipsy/shipsy-ondemand-appium.git',
-                        'https://github.com/shipsy/shipsy-riderapp-appium.git',
-                        'https://github.com/shipsy/shipsy-fieldops-appium.git',
-                        'https://github.com/shipsy/shipsy-mydtdc-app-appium.git',
+                        'git@github.com:shipsy/shipsy-ondemand-appium.git'
                     ]
 
                     def majorBranch = 'Major'  // Replace with the actual major branch name
