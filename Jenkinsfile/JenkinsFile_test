@@ -1,18 +1,32 @@
-def gitCloning(repoUrl, branchName, credentialsId) {
-    echo "Cloning repository ${repoUrl}, branch: ${branchName}"
-    checkout([$class: 'GitSCM', branches: [[name: branchName]], 
-              userRemoteConfigs: [[url: repoUrl, credentialsId: credentialsId]]])
+def gitCloning(GIT_HUB_URL, BRANCH_NAME, GIT_CREDENTIALS) {
+    echo 'Cloning files from (branch: "' + BRANCH_NAME + '" )'
+    // The below will clone your repo and will be checked out to master branch by default.
+    git branch: BRANCH_NAME , credentialsId: GIT_CREDENTIALS, url: GIT_HUB_URL
+    sh 'ls'
+    // Do a ls -lart to view all the files are cloned. It will be clonned. This is just for you to be sure about it.
+    sh "ls -lart ./*" 
+    // List all branches in your repo. 
+    sh "git branch -a"
+    // Checkout to a specific branch in your repo.
+    sh "git checkout ${BRANCH_NAME}"
 }
 
 def checkBranchUpdate(mainBranch, majorBranch) {
     sh "git fetch origin"
-    def logResult = sh(script: "git log ${mainBranch}..${majorBranch} --oneline", returnStdout: true).trim()
-    if (logResult) {
-        sendSlackNotification("The branch '${majorBranch}' is out of date with '${mainBranch}' in the repository.")
-    } else {
+    
+    // Get the merge base commit hash
+    def mergeBase = sh(script: "git merge-base ${mainBranch} ${majorBranch}", returnStdout: true).trim()
+    
+    // Check if majorBranch contains the merge base
+    def contains = sh(script: "git branch --contains ${mergeBase} ${majorBranch}", returnStdout: true).trim()
+
+    if (contains) {
         echo "The branch '${majorBranch}' is up-to-date with '${mainBranch}'."
+    } else {
+        sendSlackNotification("The branch '${majorBranch}' is out of date with '${mainBranch}' in the repository.")
     }
 }
+
 
 def sendSlackNotification(message) {
     slackSend(channel: 'C07AL8LLEGN', message: message, webhookUrl: env.SLACK_WEBHOOK_URL)
@@ -41,7 +55,9 @@ pipeline {
 
                     repos.each { repo ->
                         dir("${env.WORKSPACE}/${repo.split('/').last().replace('.git','')}") {
+                            echo "work space checking"
                             gitCloning(repo, majorBranch, env.GIT_CREDENTIALS_ID)
+                            echo "Clonig done"
                             checkBranchUpdate(mainBranch, majorBranch)
                         }
                     }
