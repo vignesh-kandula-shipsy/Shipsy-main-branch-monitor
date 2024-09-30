@@ -8,10 +8,10 @@ pipeline {
     }
 
     environment {
-        REPO_URL = 'https://github.com/shipsy/ops-dashboardv2-e2e.git'
-        echo "Repo URL: ${REPO_URL}"
+        REPO_URL = 'github.com/shipsy/ops-dashboardv2-e2e.git'
         MAJOR_BRANCH = 'Major'
         MAIN_BRANCH = 'main'
+        GITHUB_TOKEN = credentials("GITHUB-TOKEN") // Replace with your GitHub Token credential
         SLACK_WEBHOOK = credentials("INTERNAL-COMMENTED-SLACK-URL") // Replace with your Slack Webhook credential
     }
 
@@ -20,8 +20,8 @@ pipeline {
             steps {
                 script {
                     // Fetch the commit hashes for the Major and Main branches
-                    def majorBranchHash = sh(script: "git ls-remote ${REPO_URL} refs/heads/${MAJOR_BRANCH} | cut -f1", returnStdout: true).trim()
-                    def mainBranchHash = sh(script: "git ls-remote ${REPO_URL} refs/heads/${MAIN_BRANCH} | cut -f1", returnStdout: true).trim()
+                    def majorBranchHash = sh(script: "git ls-remote https://${GITHUB_TOKEN}@${REPO_URL} refs/heads/${MAJOR_BRANCH} | cut -f1", returnStdout: true).trim()
+                    def mainBranchHash = sh(script: "git ls-remote https://${GITHUB_TOKEN}@${REPO_URL} refs/heads/${MAIN_BRANCH} | cut -f1", returnStdout: true).trim()
 
                     echo "Major Branch Hash: ${majorBranchHash}"
                     echo "Main Branch Hash: ${mainBranchHash}"
