@@ -6,12 +6,12 @@ pipeline {
     options {
         skipDefaultCheckout(true)
     }
-    
+
     environment {
-        REPO_URL = 'https://github.com/shipsy/shipsy-ondemand-appium.git'
+        REPO_URL = 'https://github.com/shipsy/ops-dashboardv2-e2e.git'
         MAJOR_BRANCH = 'Major'
         MAIN_BRANCH = 'main'
-        SLACK_WEBHOOK = credentials("INTERNAL-SLACK-URL") // Replace with your Slack Webhook credential
+        SLACK_WEBHOOK = credentials("INTERNAL-COMMENTED-SLACK-URL") // Replace with your Slack Webhook credential
     }
 
     stages {
