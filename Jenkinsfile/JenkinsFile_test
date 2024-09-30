@@ -1,61 +1,37 @@
-def fetchAndCompareBranches(GIT_HUB_URL, GIT_CREDENTIALS, mainBranch, majorBranch) {
-    echo 'Fetching branches from the repository'
-    
-    // Create a temporary directory to work in
-    dir('temp-repo') {
-        // Initialize a new git repository
-        sh 'git init'
-
-        // Set up the remote repository
-        sh "git remote add origin ${GIT_HUB_URL}"
-
-        // Fetch only the specific branches you need
-        sh "git fetch --depth=1 origin ${mainBranch} --recurse-submodules=no --progress --quiet --force --depth=1 --credentialsId=${GIT_CREDENTIALS}"
-        sh "git fetch --depth=1 origin ${majorBranch} --recurse-submodules=no --progress --quiet --force --depth=1 --credentialsId=${GIT_CREDENTIALS}"
-
-
-        // Get the merge base commit hash
-        def mergeBase = sh(script: "git merge-base origin/${mainBranch} origin/${majorBranch}", returnStdout: true).trim()
-
-        // Check if majorBranch contains the merge base
-        def contains = sh(script: "git branch --contains ${mergeBase} origin/${majorBranch}", returnStdout: true).trim()
-
-        if (contains) {
-            echo "The branch '${majorBranch}' is up-to-date with '${mainBranch}'."
-        } else {
-            sendSlackNotification("The branch '${majorBranch}' is out of date with '${mainBranch}' in the repository.")
-        }
-    }
-}
-
-def sendSlackNotification(message) {
-    slackSend(channel: 'C07AL8LLEGN', message: message, webhookUrl: env.SLACK_WEBHOOK_URL)
-}
-
-
 pipeline {
     agent {
-        label 'e2e-node'
+        label 'e2e-sdet'
     }
 
+    options {
+        skipDefaultCheckout(true)
+    }
+    
     environment {
-        SLACK_WEBHOOK_URL = 'INTERNAL-SLACK-URL'
-        GIT_CREDENTIALS_ID = '91930e69-dad2-4054-9f8f-207076cca38f'
+        REPO_URL = 'https://github.com/shipsy/shipsy-ondemand-appium.git'
+        MAJOR_BRANCH = 'Major'
+        MAIN_BRANCH = 'main'
+        SLACK_WEBHOOK = credentials("INTERNAL-SLACK-URL") // Replace with your Slack Webhook credential
     }
 
     stages {
-        stage('Compare Branches') {
+        stage('Check Branches') {
             steps {
                 script {
-                    def repos = [
-                        'https://github.com/shipsy/shipsy-ondemand-appium.git'
-                    ]
+                    // Fetch the commit hashes for the Major and Main branches
+                    def majorBranchHash = sh(script: "git ls-remote ${REPO_URL} refs/heads/${MAJOR_BRANCH} | cut -f1", returnStdout: true).trim()
+                    def mainBranchHash = sh(script: "git ls-remote ${REPO_URL} refs/heads/${MAIN_BRANCH} | cut -f1", returnStdout: true).trim()
 
-                    def majorBranch = 'Major'  // Replace with the actual major branch name
-                    def mainBranch = 'main'
+                    echo "Major Branch Hash: ${majorBranchHash}"
+                    echo "Main Branch Hash: ${mainBranchHash}"
 
-                    repos.each { repo ->
-                        fetchAndCompareBranches(repo, env.GIT_CREDENTIALS_ID, mainBranch, majorBranch)
+                    // Compare the hashes to check if branches are in sync
+                    if (majorBranchHash != mainBranchHash) {
+                        echo "Branches are NOT up to date"
+                        sendSlackMessage("🚨 *Branches Out of Sync* 🚨\nBranches `${MAJOR_BRANCH}` and `${MAIN_BRANCH}` in `${REPO_URL}` are NOT up to date.")
+                    } else {
+                        echo "Branches are up to date"
+                        sendSlackMessage("✅ *Branches In Sync* ✅\nBranches `${MAJOR_BRANCH}` and `${MAIN_BRANCH}` in `${REPO_URL}` are up to date.")
                     }
                 }
             }
@@ -65,8 +41,15 @@ pipeline {
     post {
         failure {
             script {
-                sendSlackNotification("Pipeline failed. Please check.")
+                sendSlackMessage("⚠️ Jenkins job failed while checking branches in `${REPO_URL}`.")
             }
         }
     }
+}
+
+def sendSlackMessage(message) {
+    // Function to send Slack message using webhook
+    sh """
+    curl -X POST --data-urlencode 'payload={"text": "${message}"}' ${SLACK_WEBHOOK}
+    """
 }
